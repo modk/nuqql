@@ -15,6 +15,7 @@ import time
 import html
 import os
 import re
+import logging
 
 from pathlib import Path
 
@@ -132,6 +133,9 @@ class BackendClient:
         msg = self.buffer[:eom]
         # remove message including "\r\n" from buffer
         self.buffer = self.buffer[eom + 2:]
+
+        logging.debug((self, "got message"))
+
         return msg
 
     def send_command(self, cmd):
@@ -176,6 +180,7 @@ class BackendClient:
         """
 
         msg = "account {0} buddies\r\n".format(account)
+        logging.debug((self, msg))
         msg = msg.encode()
         self.sock.send(msg)
 
@@ -356,6 +361,9 @@ class Backend:
         Handle Buddy message
         """
 
+        # just log it
+        logging.debug((self, parsed_msg))
+
         # get message parts
         # msg_type = parsed_msg[0]
         acc_id = parsed_msg[1]
@@ -414,6 +422,7 @@ class Account:
         # remove buddies, that have not been updated for a while
         # TODO: tell ui, buddy does not exist any more
         self.buddies = [buddy for buddy in self.buddies if buddy.updated]
+        logging.debug(self.buddies)
 
         # set update pending in buddy
         for buddy in self.buddies:
@@ -431,10 +440,14 @@ class Account:
             if buddy.name == name:
                 if buddy.update(status, alias):
                     # tell ui about the update
+                    logging.debug("update buddy in ui: %s", name)
                     nuqql.ui.update_buddy(buddy)
 
                 # found existing buddy; stop here
                 return
+
+        # log
+        logging.debug("new buddy: %s %s %s", backend.name, self.aid, name)
 
         # new buddy
         new_buddy = Buddy(backend, self, name)
@@ -748,7 +761,11 @@ def start_backends():
     Helper for starting all backends
     """
 
-    start_purpled()
+    # logging
+    logging.basicConfig(filename="backends.log", level=logging.DEBUG,
+                        format='%(asctime)s %(message)s')
+
+    # start_purpled()
     start_based()
     start_slixmppd()
 
